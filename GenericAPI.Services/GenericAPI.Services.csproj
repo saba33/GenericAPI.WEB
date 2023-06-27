@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Orleans.Server" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Orleans.Transactions" Version="7.1.2" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GenericAPI.Domain\GenericAPI.Domain.csproj" />
+    <ProjectReference Include="..\GenericAPI.Repository\GenericAPI.Repository.csproj" />
+  </ItemGroup>
+
+</Project>
