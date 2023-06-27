@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GenericAPI.Services.Models.ResponseModels
+﻿namespace GenericAPI.Services.Models.ResponseModels
 {
+    [GenerateSerializer]
     public class GetBalanceResponse : BaseResponse
     {
-
+        public decimal Balance { get; set; }
     }
 }

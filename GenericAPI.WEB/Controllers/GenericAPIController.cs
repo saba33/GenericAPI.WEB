@@ -30,16 +30,16 @@ namespace GenericAPI.WEB.Controllers
         }
 
         [HttpPost(nameof(Bet))]
-        public async Task<ActionResult> Bet(BetRequest request)
+        public async Task<ActionResult<DeductBalanceResponce>> Bet(BetRequest request)
         {
-            await _playerServices.DeductFromBalance(request);
-            return Ok();
+            var response = await _playerServices.DeductFromBalance(request);
+            return Ok(response);
         }
 
         [HttpPost(nameof(Win))]
         public async Task<ActionResult<WinResponse>> Win(WinRequest request)
         {
-            await _playerServices.AddToBalance(request);
+            var response = await _playerServices.AddToBalance(request);
             return Ok();
         }
 
@@ -47,14 +47,15 @@ namespace GenericAPI.WEB.Controllers
         [HttpPost(nameof(BetWin))]
         public async Task<ActionResult<BetWinResponse>> BetWin(BetWinRequest request)
         {
-            return Ok();
+            var result = await _playerServices.BetWin(request);
+            return Ok(result);
         }
 
         [HttpGet(nameof(GetBalance))]
         public async Task<ActionResult<GetBalanceResponse>> GetBalance(int playerId)
         {
             decimal balance = await _playerServices.GetPlayerBalance(playerId);
-            return Ok(new GetBalanceResponse { Message = $"balance = {balance}", StatusCode = StatusCodes.Status200OK });
+            return Ok(new GetBalanceResponse { Message = $"balance = {balance}", StatusCode = StatusCodes.Status200OK, Balance = balance });
         }
 
     }

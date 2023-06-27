@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GenericAPI.Services.Models.ResponseModels
+﻿namespace GenericAPI.Services.Models.ResponseModels
 {
+    [GenerateSerializer]
     public class BaseResponse
     {
         public int StatusCode { get; set; }

@@ -1,6 +1,9 @@
 ﻿using GenericAPI.Domain.Models;
 using GenericAPI.Services.Abstractions;
 using GenericAPI.Services.Helper;
+using GenericAPI.Services.Models.RequestModels;
+using GenericAPI.Services.Models.ResponseModels;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Orleans.Concurrency;
 using Orleans.Transactions.Abstractions;
@@ -23,7 +26,7 @@ namespace GenericAPI.Services.Implementations
             _transactionalPlayerState = balance ?? throw new ArgumentNullException(nameof(balance));
         }
 
-        public Task<decimal> AddToBalance(decimal amount)
+        public async Task<WinResponse> AddToBalance(WinRequest request)
         {
             var playerId = (int)this.GetPrimaryKeyLong();
 
@@ -31,25 +34,51 @@ namespace GenericAPI.Services.Implementations
             {
                 throw new ArgumentException("Invalid player ID.");
             }
-            if (amount <= 0)
+            if (request.Win <= 0)
             {
                 throw new ArgumentException("Invalid amount.");
             }
+            var connectionString = _configuration.GetSection("ConnectionStrings").GetValue<string>("connectionString");
+            var repository = new AdoNetRepository<Transaction>(connectionString);
+            var tableName = "Transaction";
 
-            _transactionalPlayerState.PerformUpdate(playerState =>
+            var record = new Transaction
             {
-                playerState.Balance += amount;
-                playerState.Version++;
-                //player.Result.Balance += amount;
-                //player.Result.Version++;
-                //_playerRepository.Update(player.Result);
-            });
+                UserId = playerId,
+                Win = request.Win,
+                TransactionTime = DateTime.Now,
+            };
 
-            return Task.FromResult(playerState.Balance);
+            var currentBalance = await this.GetPlayerBalance();
+
+            if (!repository.CheckIfTransactionExists(request.TransactionId))
+            {
+                await _transactionalPlayerState.PerformUpdate(async playerState =>
+                {
+                    playerState.Balance = currentBalance;
+                    playerState.Version++;
+                    var affectedRows = await repository.InsertRecord(tableName, record);
+                    repository.UpdatePlayerBalance(playerId, currentBalance);
+                    await Task.CompletedTask;
+                });
+
+                return new WinResponse
+                {
+                    Balance = playerState.Balance,
+                    Message = "Balance is Deducted",
+                    StatusCode = StatusCodes.Status200OK
+                };
+            }
+
+            return new WinResponse
+            {
+                Balance = playerState.Balance,
+                Message = "Transaction with same transaction Id is already exists",
+                StatusCode = StatusCodes.Status400BadRequest
+            };
 
         }
-        [Transaction(TransactionOption.Join)]
-        public async Task<decimal> DeductBalance(decimal amount)
+        public async Task<BetWinResponse> BetWin(BetWinRequest request)
         {
             var playerId = (int)this.GetPrimaryKeyLong();
 
@@ -58,14 +87,75 @@ namespace GenericAPI.Services.Implementations
                 throw new ArgumentException("Invalid player ID.");
             }
 
-            if (amount <= 0)
+            if (request.BetAmount <= 0 || request.WinAmount <= 0)
+            {
+                throw new ArgumentException("Invalid bet or win amount.");
+            }
+
+            var currentBalance = await this.GetPlayerBalance();
+
+            if (currentBalance < request.BetAmount)
+            {
+                throw new Exception("Insufficient balance to place the bet.");
+            }
+
+
+            var connectionString = _configuration.GetSection("ConnectionStrings").GetValue<string>("connectionString");
+            var repository = new AdoNetRepository<Transaction>(connectionString);
+            var tableName = "Transaction";
+            var record = new Transaction
+            {
+                UserId = playerId,
+                BetAmount = request.BetAmount,
+                Win = request.WinAmount,
+                TransactionTime = DateTime.Now,
+            };
+
+            var newBalance = currentBalance - request.BetAmount + request.WinAmount;
+
+            if (!repository.CheckIfTransactionExists(request.TransactionId))
+            {
+                await _transactionalPlayerState.PerformUpdate(async state =>
+                {
+                    playerState.Balance = newBalance;
+                    playerState.Version++;
+                    var affectedRows = await repository.InsertRecord(tableName, record);
+                    repository.UpdatePlayerBalance(playerId, currentBalance);
+                    await Task.CompletedTask;
+                });
+
+                return new BetWinResponse
+                {
+                    Balance = playerState.Balance,
+                    Message = "Transaction is Conplated.",
+                    StatusCode = StatusCodes.Status200OK
+                };
+            }
+
+            return new BetWinResponse
+            {
+                Balance = playerState.Balance,
+                Message = "Transaction with same transaction Id is already exists",
+                StatusCode = StatusCodes.Status400BadRequest
+            };
+        }
+        public async Task<DeductBalanceResponce> DeductBalance(BetRequest request)
+        {
+            var playerId = (int)this.GetPrimaryKeyLong();
+
+            if (playerId <= 0)
+            {
+                throw new ArgumentException("Invalid player ID.");
+            }
+
+            if (request.Amount <= 0)
             {
                 throw new ArgumentException("Invalid amount.");
             }
 
             var currentBalance = await this.GetPlayerBalance();
 
-            if (currentBalance < amount)
+            if (currentBalance < request.Amount)
             {
                 throw new Exception("Insufficient balance to make the deduction.");
             }
@@ -76,25 +166,46 @@ namespace GenericAPI.Services.Implementations
             var record = new Transaction
             {
                 UserId = playerId,
-                BetAmount = amount,
+                BetAmount = request.Amount,
                 TransactionTime = DateTime.Now,
             };
 
-            await _transactionalPlayerState.PerformUpdate(async state =>
+            var newBalance = await this.GetPlayerBalance();
+
+            if (!repository.CheckIfTransactionExists(request.TransactionId))
             {
-                playerState.Balance -= amount;
-                playerState.Version++;
-                var affectedRows = await repository.InsertRecord(tableName, record);
-                await Task.CompletedTask;
-            });
+                await _transactionalPlayerState.PerformUpdate(async state =>
+                {
+                    playerState.Balance = newBalance;
+                    playerState.Version++;
+                    var affectedRows = await repository.InsertRecord(tableName, record);
+                    repository.UpdatePlayerBalance(playerId, currentBalance);
+                    await Task.CompletedTask;
+                });
 
-            return playerState.Balance;
+                return new DeductBalanceResponce
+                {
+                    Balance = playerState.Balance,
+                    Message = "Balance is Deducted",
+                    StatusCode = StatusCodes.Status200OK
+                };
+            }
+
+            return new DeductBalanceResponce
+            {
+                Balance = playerState.Balance,
+                Message = "Transaction with same transaction Id is already exists",
+                StatusCode = StatusCodes.Status400BadRequest
+            };
         }
-
         public Task<decimal> GetPlayerBalance()
         {
+            var connectionString = _configuration.GetSection("ConnectionStrings").GetValue<string>("connectionString");
+            var repository = new AdoNetRepository<Player>(connectionString);
             var playerId = (int)this.GetPrimaryKeyLong();
-            return _transactionalPlayerState.PerformRead(balance => balance.Balance);
+            var response = repository.GetPlayerBalance(playerId);
+            return Task.FromResult(response);
         }
+
     }
 }

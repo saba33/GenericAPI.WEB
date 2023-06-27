@@ -1,12 +1,19 @@
-﻿namespace GenericAPI.Services.Abstractions
+﻿using GenericAPI.Services.Models.RequestModels;
+using GenericAPI.Services.Models.ResponseModels;
+
+namespace GenericAPI.Services.Abstractions
 {
     public interface IPlayerGrain : IGrainWithIntegerKey
     {
         [Transaction(TransactionOption.CreateOrJoin)]
         Task<decimal> GetPlayerBalance();
+
         [Transaction(TransactionOption.CreateOrJoin)]
-        Task<decimal> DeductBalance(decimal amount);
+        Task<DeductBalanceResponce> DeductBalance(BetRequest request);
+
         [Transaction(TransactionOption.CreateOrJoin)]
-        Task<decimal> AddToBalance(decimal amount);
+        Task<WinResponse> AddToBalance(WinRequest request);
+        [Transaction(TransactionOption.CreateOrJoin)]
+        Task<BetWinResponse> BetWin(BetWinRequest request);
     }
 }

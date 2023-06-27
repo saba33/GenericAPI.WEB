@@ -1,4 +1,5 @@
 ﻿using GenericAPI.Services.Models.RequestModels;
+using GenericAPI.Services.Models.ResponseModels;
 
 namespace GenericAPI.Services.Abstractions
 {
@@ -6,8 +7,8 @@ namespace GenericAPI.Services.Abstractions
     {
         Task<decimal> GetPlayerBalance(int playerId);
         [Transaction(TransactionOption.Join)]
-        Task DeductFromBalance(BetRequest request);
-        Task AddToBalance(WinRequest request);
-        //Task<LaunchGameResponse> LaunchGame(LaunchGameRequest request);
+        Task<DeductBalanceResponce> DeductFromBalance(BetRequest request);
+        Task<WinResponse> AddToBalance(WinRequest request);
+        Task<BetWinResponse> BetWin(BetWinRequest request);
     }
 }
